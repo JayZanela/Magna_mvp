@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
 import { UserController } from './user.controller'
 
+
+
 export async function GET() {
   return await UserController.getUsers()
 }
