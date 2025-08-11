@@ -3,12 +3,13 @@ import jwt from 'jsonwebtoken'
 import { prisma } from '@/lib/db'
 import { RegisterData, SigninData } from '@/lib/validations'
 import { UserService } from '../users/user.service'
+import { randomBytes } from 'crypto'
 
 export class AuthService {
   // SUBFUNÇÕES
-  /*static async getUserByEmail(email: string) {
+  static async getUserByEmail(email: string) {
     return await prisma.user.findUnique({ where: { email } })
-  }*/
+  }
 
   static async createRefreshToken(userId: number) {
     const token = jwt.sign(
@@ -25,8 +26,20 @@ export class AuthService {
   }
 
   static generateTokens(userId: number, email: string, role: string) {
+    // Gerar timestamp com milissegundos + nonce para garantir uniqueness
+    const now = Date.now()
+    const iat = Math.floor(now / 1000)
+    const nonce = randomBytes(8).toString('hex') // 16 chars hex
+    const jti = `${now}-${nonce}` // JWT ID único
+    
     const accessToken = jwt.sign(
-      { userId, email, role },
+      { 
+        userId, 
+        email, 
+        role, 
+        iat,
+        jti // JWT ID para garantir tokens únicos
+      },
       process.env.JWT_SECRET!,
       { expiresIn: '15m' }
     )
@@ -105,26 +118,54 @@ export class AuthService {
 
   static async refreshAccessToken(refreshToken: string) {
     try {
-      const payload = jwt.verify(
-        refreshToken,
-        process.env.JWT_REFRESH_SECRET!
-      ) as any
-
+      // PRIMEIRO: Validar se token existe no banco (previne timing attacks)
       const tokenRecord = await prisma.refreshToken.findFirst({
-        where: { token: refreshToken, userId: payload.userId },
+        where: { token: refreshToken },
       })
 
-      if (!tokenRecord || tokenRecord.expiresAt < new Date()) {
-        throw new Error('Refresh token inválido ou expirado')
+      if (!tokenRecord) {
+        console.warn(`[SECURITY] Tentativa de refresh com token inexistente: ${refreshToken.substring(0, 10)}...`)
+        throw new Error('INVALID_REFRESH_TOKEN')
+      }
+
+      if (tokenRecord.expiresAt < new Date()) {
+        console.warn(`[SECURITY] Tentativa de refresh com token expirado: ${refreshToken.substring(0, 10)}...`)
+        // Limpar token expirado
+        await prisma.refreshToken.delete({ where: { id: tokenRecord.id } })
+        throw new Error('EXPIRED_REFRESH_TOKEN')
+      }
+
+      // SEGUNDO: Verificar JWT apenas após validar DB
+      let payload: any
+      try {
+        payload = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET!) as any
+      } catch (jwtError) {
+        console.warn(`[SECURITY] JWT inválido para token no banco: ${refreshToken.substring(0, 10)}...`)
+        // Token no banco mas JWT inválido - possível comprometimento
+        await prisma.refreshToken.delete({ where: { id: tokenRecord.id } })
+        throw new Error('CORRUPTED_REFRESH_TOKEN')
+      }
+
+      // Validar se userId do token e JWT coincidem
+      if (tokenRecord.userId !== payload.userId) {
+        console.error(`[SECURITY] ALERTA: userId mismatch! DB: ${tokenRecord.userId}, JWT: ${payload.userId}`)
+        await prisma.refreshToken.delete({ where: { id: tokenRecord.id } })
+        throw new Error('TOKEN_MISMATCH')
       }
 
       const user = await prisma.user.findUnique({
         where: { id: payload.userId },
       })
 
-      if (!user) {
-        throw new Error('Usuário não encontrado')
+      if (!user || !user.isActive) {
+        console.warn(`[SECURITY] Refresh para usuário inativo/inexistente: ${payload.userId}`)
+        await prisma.refreshToken.delete({ where: { id: tokenRecord.id } })
+        throw new Error('USER_NOT_FOUND')
       }
+
+      // TOKEN ROTATION: Invalidar token atual e criar novo
+      await prisma.refreshToken.delete({ where: { id: tokenRecord.id } })
+      const newRefreshTokenRecord = await this.createRefreshToken(user.id)
 
       const { accessToken } = this.generateTokens(
         user.id,
@@ -132,15 +173,39 @@ export class AuthService {
         user.role
       )
 
-      return { accessToken }
+      console.info(`[AUTH] Token refresh realizado com sucesso para usuário ${user.id}`)
+      
+      return { 
+        accessToken, 
+        refreshToken: newRefreshTokenRecord.token 
+      }
     } catch (error) {
-      throw new Error('Refresh token inválido')
+      if (error instanceof Error && error.message.startsWith('INVALID_') || 
+          error.message.startsWith('EXPIRED_') || 
+          error.message.startsWith('CORRUPTED_') ||
+          error.message.startsWith('TOKEN_') ||
+          error.message.startsWith('USER_')) {
+        throw error
+      }
+      console.error('[SECURITY] Erro inesperado no refresh:', error)
+      throw new Error('REFRESH_ERROR')
     }
   }
 
   static async logout(refreshToken: string) {
-    await prisma.refreshToken.deleteMany({
+    const tokenRecord = await prisma.refreshToken.findFirst({
       where: { token: refreshToken },
     })
+
+    if (!tokenRecord) {
+      console.warn(`[SECURITY] Tentativa de logout com token inexistente: ${refreshToken.substring(0, 10)}...`)
+      throw new Error('INVALID_LOGOUT_TOKEN')
+    }
+
+    await prisma.refreshToken.delete({
+      where: { id: tokenRecord.id },
+    })
+
+    console.info(`[AUTH] Logout realizado com sucesso para token ${refreshToken.substring(0, 10)}...`)
   }
 }
