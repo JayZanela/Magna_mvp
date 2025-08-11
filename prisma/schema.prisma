@@ -1,0 +1,151 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 Int                @id @default(autoincrement())
+  email              String             @unique
+  passwordHash       String             @map("password_hash")
+  fullName           String             @map("full_name")
+  role               String             @default("tester")
+  isActive           Boolean            @default(true) @map("is_active")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  uploads            Attachment[]
+  comments           ExecutionComment[]
+  projectMemberships ProjectMember[]
+  ownedProjects      Project[]          @relation("ProjectOwner")
+  testExecutions     TestExecution[]
+  createdScenarios   TestScenario[]     @relation("ScenarioCreator")
+  assignedScenarios  TestScenario[]     @relation("ScenarioAssignee")
+
+  @@index([email])
+  @@map("users")
+}
+
+model Project {
+  id          Int             @id @default(autoincrement())
+  name        String
+  description String?
+  ownerId     Int             @map("owner_id")
+  status      String          @default("active")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  members     ProjectMember[]
+  owner       User            @relation("ProjectOwner", fields: [ownerId], references: [id])
+  testSuites  TestSuite[]
+
+  @@index([ownerId])
+  @@index([status])
+  @@map("projects")
+}
+
+model ProjectMember {
+  id        Int      @id @default(autoincrement())
+  projectId Int      @map("project_id")
+  userId    Int      @map("user_id")
+  role      String   @default("tester")
+  joinedAt  DateTime @default(now()) @map("joined_at")
+  user      User     @relation(fields: [userId], references: [id])
+  project   Project  @relation(fields: [projectId], references: [id])
+
+  @@unique([projectId, userId])
+  @@map("project_members")
+}
+
+model TestSuite {
+  id          Int            @id @default(autoincrement())
+  projectId   Int            @map("project_id")
+  parentId    Int?           @map("parent_id")
+  name        String
+  description String?
+  suiteOrder  Int            @default(0) @map("suite_order")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  scenarios   TestScenario[]
+  parent      TestSuite?     @relation("SuiteHierarchy", fields: [parentId], references: [id])
+  children    TestSuite[]    @relation("SuiteHierarchy")
+  project     Project        @relation(fields: [projectId], references: [id])
+
+  @@index([projectId])
+  @@index([parentId])
+  @@map("test_suites")
+}
+
+model TestScenario {
+  id             Int             @id @default(autoincrement())
+  suiteId        Int             @map("suite_id")
+  name           String
+  preconditions  String?
+  steps          String?
+  expectedResult String?         @map("expected_result")
+  assignedTo     Int?            @map("assigned_to")
+  priority       String          @default("medium")
+  status         String          @default("pending")
+  scenarioOrder  Int             @default(0) @map("scenario_order")
+  createdBy      Int             @map("created_by")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  executions     TestExecution[]
+  creator        User            @relation("ScenarioCreator", fields: [createdBy], references: [id])
+  assignee       User?           @relation("ScenarioAssignee", fields: [assignedTo], references: [id])
+  suite          TestSuite       @relation(fields: [suiteId], references: [id])
+
+  @@index([suiteId])
+  @@index([assignedTo])
+  @@index([status])
+  @@map("test_scenarios")
+}
+
+model TestExecution {
+  id             Int                @id @default(autoincrement())
+  scenarioId     Int                @map("scenario_id")
+  executorId     Int                @map("executor_id")
+  executionRound Int                @default(1) @map("execution_round")
+  status         String
+  notes          String?
+  testData       String?            @map("test_data")
+  startedAt      DateTime?          @map("started_at")
+  completedAt    DateTime?          @map("completed_at")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  attachments    Attachment[]
+  comments       ExecutionComment[]
+  executor       User               @relation(fields: [executorId], references: [id])
+  scenario       TestScenario       @relation(fields: [scenarioId], references: [id])
+
+  @@index([scenarioId])
+  @@index([executorId])
+  @@index([executionRound])
+  @@map("test_executions")
+}
+
+model Attachment {
+  id          Int           @id @default(autoincrement())
+  executionId Int           @map("execution_id")
+  fileName    String        @map("file_name")
+  filePath    String        @map("file_path")
+  fileType    String?       @map("file_type")
+  fileSize    Int?          @map("file_size")
+  uploadedBy  Int           @map("uploaded_by")
+  uploadedAt  DateTime      @default(now()) @map("uploaded_at")
+  uploader    User          @relation(fields: [uploadedBy], references: [id])
+  execution   TestExecution @relation(fields: [executionId], references: [id])
+
+  @@index([executionId])
+  @@map("attachments")
+}
+
+model ExecutionComment {
+  id          Int           @id @default(autoincrement())
+  executionId Int           @map("execution_id")
+  userId      Int           @map("user_id")
+  comment     String
+  createdAt   DateTime      @default(now()) @map("created_at")
+  user        User          @relation(fields: [userId], references: [id])
+  execution   TestExecution @relation(fields: [executionId], references: [id])
+
+  @@map("execution_comments")
+}
