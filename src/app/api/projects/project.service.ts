@@ -313,4 +313,27 @@ export class ProjectService {
 
     return project.ownerId === userId || project.members.length > 0
   }
+
+  static async userCanEditProject(projectId: number, userId: number): Promise<boolean> {
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      include: {
+        members: {
+          where: { userId }
+        }
+      }
+    })
+
+    if (!project) {
+      return false
+    }
+
+    // Apenas owner ou admins/managers podem editar
+    if (project.ownerId === userId) {
+      return true
+    }
+
+    const member = project.members[0]
+    return member && (member.role === 'admin' || member.role === 'manager')
+  }
 }

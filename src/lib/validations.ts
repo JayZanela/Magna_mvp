@@ -53,6 +53,26 @@ export const projectMemberUpdateSchema = z.object({
   role: z.enum(['admin', 'manager', 'tester']),
 })
 
+// Validações de suites de teste
+export const suiteCreateSchema = z.object({
+  name: z.string().min(1, 'Nome da suite é obrigatório'),
+  description: z.string().optional(),
+  projectId: z.number().int().positive('ID do projeto deve ser um número positivo'),
+  parentId: z.number().int().positive('ID do parent deve ser um número positivo').optional(),
+  suiteOrder: z.number().int().min(0, 'Ordem deve ser um número não negativo').default(0),
+})
+
+export const suiteUpdateSchema = z.object({
+  name: z.string().min(1, 'Nome da suite é obrigatório').optional(),
+  description: z.string().optional(),
+  suiteOrder: z.number().int().min(0, 'Ordem deve ser um número não negativo').optional(),
+})
+
+export const suiteMoveSchema = z.object({
+  newParentId: z.number().int().positive('ID do novo parent deve ser um número positivo').nullable().optional(),
+  newOrder: z.number().int().min(0, 'Nova ordem deve ser um número não negativo').optional(),
+})
+
 // Tipos inferidos
 export type UserCreate = z.infer<typeof userCreateSchema>
 export type UserUpdate = z.infer<typeof userUpdateSchema>
@@ -63,3 +83,6 @@ export type ProjectCreate = z.infer<typeof projectCreateSchema>
 export type ProjectUpdate = z.infer<typeof projectUpdateSchema>
 export type ProjectMember = z.infer<typeof projectMemberSchema>
 export type ProjectMemberUpdate = z.infer<typeof projectMemberUpdateSchema>
+export type SuiteCreate = z.infer<typeof suiteCreateSchema>
+export type SuiteUpdate = z.infer<typeof suiteUpdateSchema>
+export type SuiteMove = z.infer<typeof suiteMoveSchema>
