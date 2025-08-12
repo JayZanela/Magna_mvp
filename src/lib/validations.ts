@@ -32,9 +32,34 @@ export const refreshTokenSchema = z.object({
   refreshToken: z.string().min(1, 'Refresh token é obrigatório'),
 })
 
+// Validações de projetos
+export const projectCreateSchema = z.object({
+  name: z.string().min(1, 'Nome do projeto é obrigatório'),
+  description: z.string().optional(),
+})
+
+export const projectUpdateSchema = z.object({
+  name: z.string().min(1, 'Nome do projeto é obrigatório').optional(),
+  description: z.string().optional(),
+  status: z.enum(['active', 'inactive', 'completed']).optional(),
+})
+
+export const projectMemberSchema = z.object({
+  userId: z.number().int().positive('ID do usuário deve ser um número positivo'),
+  role: z.enum(['admin', 'manager', 'tester']).default('tester'),
+})
+
+export const projectMemberUpdateSchema = z.object({
+  role: z.enum(['admin', 'manager', 'tester']),
+})
+
 // Tipos inferidos
 export type UserCreate = z.infer<typeof userCreateSchema>
 export type UserUpdate = z.infer<typeof userUpdateSchema>
 export type RegisterData = z.infer<typeof registerSchema>
 export type SigninData = z.infer<typeof signinSchema>
 export type RefreshTokenData = z.infer<typeof refreshTokenSchema>
+export type ProjectCreate = z.infer<typeof projectCreateSchema>
+export type ProjectUpdate = z.infer<typeof projectUpdateSchema>
+export type ProjectMember = z.infer<typeof projectMemberSchema>
+export type ProjectMemberUpdate = z.infer<typeof projectMemberUpdateSchema>
