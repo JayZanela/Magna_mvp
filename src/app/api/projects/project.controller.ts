@@ -245,7 +245,16 @@ export class ProjectController {
         )
       }
 
-      const body = await request.json()
+      let body
+      try {
+        body = await request.json()
+      } catch (jsonError) {
+        return NextResponse.json(
+          { error: 'JSON inválido no corpo da requisição' },
+          { status: 400 }
+        )
+      }
+
       const validatedData = projectMemberSchema.parse(body)
       const user = (request as any).user
       

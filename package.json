@@ -14,6 +14,7 @@
     "test:watch": "vitest --watch"
   },
   "dependencies": {
+    "@anthropic-ai/claude-code": "^1.0.77",
     "@prisma/client": "^5.15.0",
     "bcryptjs": "^3.0.2",
     "cookie": "^1.0.2",
