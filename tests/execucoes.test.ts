@@ -10,6 +10,7 @@ let suiteId: number
 let scenarioId: number
 let executionId: number
 let secondUserId: number
+let ownerResponse: any
 
 const testUser = {
   email: `test-execution-owner-${Date.now()}@exemplo.com`,
@@ -48,7 +49,7 @@ describe('▶️ Executions API - Fluxo Completo', () => {
     console.log(`📧 Email do executor secundário: ${secondTestUser.email}`)
 
     // Registrar usuários
-    const ownerResponse = await request(BASE_URL)
+    ownerResponse = await request(BASE_URL)
       .post('/api/auth/register')
       .send(testUser)
       .expect(201)

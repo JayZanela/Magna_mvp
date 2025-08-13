@@ -51,6 +51,11 @@ export class TestDatabaseManager {
       return this.baseIds
     }
     
+    // Garantir que o banco está inicializado
+    if (!this.prisma) {
+      await this.initialize()
+    }
+    
     console.log('🏗️ Setting up base test data...')
     
     try {

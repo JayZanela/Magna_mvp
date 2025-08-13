@@ -9,6 +9,11 @@ interface RateLimitEntry {
 const rateLimitStore = new Map<string, RateLimitEntry>()
 
 export function checkRateLimit(ip: string): { allowed: boolean, timeLeft?: number } {
+  // Desabilitar rate limiting em ambiente de teste
+  if (process.env.NODE_ENV === 'test') {
+    return { allowed: true }
+  }
+  
   const now = Date.now()
   const windowMs = 60 * 1000 // 1 minuto
   const maxRequests = 5 // 5 requests por minuto

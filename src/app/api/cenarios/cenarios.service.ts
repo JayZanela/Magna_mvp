@@ -43,7 +43,7 @@ export class CenarioService {
     )
     if (!hasAccess) {
       throw new Error(
-        'Voc� n�o tem permiss�o para acessar os cen�rios desta suite'
+        'Você não tem permissão para acessar os cenários desta suite'
       )
     }
 
@@ -76,7 +76,7 @@ export class CenarioService {
       userId
     )
     if (!hasAccess) {
-      throw new Error('Voc� n�o tem permiss�o para criar cen�rios nesta suite')
+      throw new Error('Você não tem permissão para criar cenários nesta suite')
     }
 
     const suite = await prisma.testSuite.findUnique({
@@ -85,7 +85,7 @@ export class CenarioService {
     })
 
     if (!suite) {
-      throw new Error('Suite n�o encontrada')
+      throw new Error('Suite não encontrada')
     }
 
     if (data.assignedTo) {
@@ -93,7 +93,7 @@ export class CenarioService {
         where: { id: data.assignedTo },
       })
       if (!assignedUser) {
-        throw new Error('Usu�rio atribu�do n�o encontrado')
+        throw new Error('Usuário atribuído não encontrado')
       }
     }
 
@@ -113,7 +113,7 @@ export class CenarioService {
         preconditions: data.preconditions,
         steps: data.steps,
         expectedResult: data.expectedResult,
-        assignedTo: data.assignedTo,
+        assignedTo: data.assignedTo || null,
         priority: data.priority,
         scenarioOrder,
         createdBy: userId,
@@ -131,7 +131,7 @@ export class CenarioService {
   ) {
     const scenario = await this.getScenarioById(id)
     if (!scenario) {
-      throw new Error('Cen�rio n�o encontrado')
+      throw new Error('Cenário não encontrado')
     }
 
     const { hasAccess } = await SuiteService.validateSuiteAccess(
@@ -139,7 +139,7 @@ export class CenarioService {
       userId
     )
     if (!hasAccess) {
-      throw new Error('Voc� n�o tem permiss�o para editar este cen�rio')
+      throw new Error('Você não tem permissão para editar este cenário')
     }
 
     if (data.assignedTo) {
@@ -147,7 +147,7 @@ export class CenarioService {
         where: { id: data.assignedTo },
       })
       if (!assignedUser) {
-        throw new Error('Usu�rio atribu�do n�o encontrado')
+        throw new Error('Usuário atribuído não encontrado')
       }
     }
 
@@ -172,7 +172,7 @@ export class CenarioService {
   static async deleteScenario(id: number, userId: number) {
     const scenario = await this.getScenarioById(id)
     if (!scenario) {
-      throw new Error('Cen�rio n�o encontrado')
+      throw new Error('Cenário não encontrado')
     }
 
     const { hasAccess } = await SuiteService.validateSuiteAccess(
@@ -180,7 +180,7 @@ export class CenarioService {
       userId
     )
     if (!hasAccess) {
-      throw new Error('Voc� n�o tem permiss�o para excluir este cen�rio')
+      throw new Error('Você não tem permissão para excluir este cenário')
     }
 
     const hasExecutions = await prisma.testExecution.count({
@@ -189,7 +189,7 @@ export class CenarioService {
 
     if (hasExecutions > 0) {
       throw new Error(
-        'N�o � poss�vel excluir um cen�rio que possui execu��es. Para manter o hist�rico, altere o status para "blocked" ou "completed".'
+        'Não é possível excluir um cenário que possui execuções. Para manter o histórico, altere o status para "blocked" ou "completed".'
       )
     }
 
@@ -201,7 +201,7 @@ export class CenarioService {
   static async getScenarioStats(scenarioId: number, userId: number) {
     const scenario = await this.getScenarioById(scenarioId)
     if (!scenario) {
-      throw new Error('Cen�rio n�o encontrado')
+      throw new Error('Cenário não encontrado')
     }
 
     const { hasAccess } = await SuiteService.validateSuiteAccess(
@@ -209,7 +209,7 @@ export class CenarioService {
       userId
     )
     if (!hasAccess) {
-      throw new Error('Voc� n�o tem permiss�o para acessar este cen�rio')
+      throw new Error('Você não tem permissão para acessar este cenário')
     }
 
     const executions = await prisma.testExecution.findMany({
@@ -261,7 +261,7 @@ export class CenarioService {
   static async duplicateScenario(id: number, userId: number) {
     const originalScenario = await this.getScenarioById(id)
     if (!originalScenario) {
-      throw new Error('Cen�rio n�o encontrado')
+      throw new Error('Cenário não encontrado')
     }
 
     const { hasAccess } = await SuiteService.validateSuiteAccess(
@@ -269,26 +269,26 @@ export class CenarioService {
       userId
     )
     if (!hasAccess) {
-      throw new Error('Voc� n�o tem permiss�o para duplicar este cen�rio')
+      throw new Error('Você não tem permissão para duplicar este cenário')
     }
 
-    // Validar e garantir que priority seja um valor v�lido
+    // Validar e garantir que priority seja um valor válido
     const validPriorities = ['low', 'medium', 'high', 'critical'] as const
     const priority = validPriorities.includes(originalScenario.priority as any) 
       ? (originalScenario.priority as 'low' | 'medium' | 'high' | 'critical')
-      : 'medium' // valor padr�o caso seja inv�lido
+      : 'medium' // valor padrão caso seja inválido
 
     const duplicateData: ScenarioCreate = {
-      name: `${originalScenario.name} (C�pia)`,
+      name: `${originalScenario.name} (Cópia)`,
       suiteId: originalScenario.suiteId,
       preconditions: originalScenario.preconditions,
       steps: originalScenario.steps,
       expectedResult: originalScenario.expectedResult,
       priority,
-      assignedTo: originalScenario.assignedTo as number,
+      assignedTo: originalScenario.assignedTo as number, // Maintain assignment in duplicate
       scenarioOrder: originalScenario.scenarioOrder + 1,
     }
-
+    
     return await this.createScenario(duplicateData, userId)
   }
 

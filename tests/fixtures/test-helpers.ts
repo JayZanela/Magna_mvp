@@ -364,17 +364,21 @@ export class TestHelpers {
    * Limpa usuários temporários criados
    */
   static async cleanupTemporaryUsers(): Promise<void> {
-    const prisma = TestDatabaseManager.getPrisma()
+    try {
+      const prisma = TestDatabaseManager.getPrisma()
     
-    await prisma.user.deleteMany({
-      where: {
-        email: {
-          startsWith: 'temp-user-'
+      await prisma.user.deleteMany({
+        where: {
+          email: {
+            startsWith: 'temp-user-'
+          }
         }
-      }
-    })
+      })
     
-    console.log('🧹 Temporary users cleaned up')
+      console.log('🧹 Temporary users cleaned up')
+    } catch (error) {
+      console.log('⚠️ Could not cleanup temporary users:', error)
+    }
   }
   
   /**

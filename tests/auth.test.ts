@@ -148,9 +148,11 @@ describe('🔐 Auth API - Fluxo Completo', () => {
 
       expect(newAccessToken).toBeDefined()
       expect(newRefreshToken).toBeDefined()
-      expect(newAccessToken).not.toBe(accessToken) // Deve ser diferente do anterior// Novo refresh token também
+      expect(newAccessToken).not.toBe(accessToken) // Deve ser diferente do anterior
+      expect(newRefreshToken).not.toBe(refreshToken) // Novo refresh token também
 
       accessToken = newAccessToken
+      refreshToken = newRefreshToken
 
       console.log('✅ Access token renovado com sucesso')
       console.log(`🔑 Novo Access Token: ${accessToken.substring(0, 20)}...`)

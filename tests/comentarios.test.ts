@@ -11,6 +11,7 @@ let scenarioId: number
 let executionId: number
 let commentId: number
 let secondUserId: number
+let ownerResponse: any
 
 const testUser = {
   email: `test-comment-owner-${Date.now()}@exemplo.com`,
@@ -53,7 +54,7 @@ describe('💬 Comments API - Fluxo Completo', () => {
     console.log(`📧 Email do comentarista secundário: ${secondTestUser.email}`)
 
     // Registrar usuários
-    const ownerResponse = await request(BASE_URL)
+    ownerResponse = await request(BASE_URL)
       .post('/api/auth/register')
       .send(testUser)
       .expect(201)

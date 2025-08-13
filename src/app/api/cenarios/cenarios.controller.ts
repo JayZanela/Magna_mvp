@@ -28,8 +28,11 @@ export class CenarioController {
           )
         }
 
-        const statusCode = error.message.includes('não encontrad') || error.message.includes('não existe') ? 404 :
-                          error.message.includes('não tem permissão') ? 403 : 400
+        const statusCode = error.message.includes('não encontrado') || 
+                          error.message.includes('não encontrada') || 
+                          error.message.includes('não existe') ? 404 :
+                          error.message.includes('não tem permissão') || 
+                          error.message.includes('Você não tem permissão') ? 403 : 400
 
         return NextResponse.json({ error: error.message }, { status: statusCode })
       }
@@ -105,8 +108,11 @@ export class CenarioController {
           )
         }
 
-        const statusCode = error.message.includes('não encontrad') || error.message.includes('não existe') ? 404 :
-                          error.message.includes('não tem permissão') ? 403 : 400
+        const statusCode = error.message.includes('não encontrado') || 
+                          error.message.includes('não encontrada') || 
+                          error.message.includes('não existe') ? 404 :
+                          error.message.includes('não tem permissão') || 
+                          error.message.includes('Você não tem permissão') ? 403 : 400
 
         return NextResponse.json({ error: error.message }, { status: statusCode })
       }
@@ -133,8 +139,11 @@ export class CenarioController {
           { status: 200 }
         )
       } catch (error: any) {
-        const statusCode = error.message.includes('não encontrad') || error.message.includes('não existe') ? 404 :
-                          error.message.includes('não tem permissão') ? 403 : 400
+        const statusCode = error.message.includes('não encontrado') || 
+                          error.message.includes('não encontrada') || 
+                          error.message.includes('não existe') ? 404 :
+                          error.message.includes('não tem permissão') || 
+                          error.message.includes('Você não tem permissão') ? 403 : 400
 
         return NextResponse.json({ error: error.message }, { status: statusCode })
       }
@@ -181,8 +190,11 @@ export class CenarioController {
         const scenario = await CenarioService.duplicateScenario(scenarioId, user.id)
         return NextResponse.json(scenario, { status: 201 })
       } catch (error: any) {
-        const statusCode = error.message.includes('não encontrad') || error.message.includes('não existe') ? 404 :
-                          error.message.includes('não tem permissão') ? 403 : 400
+        const statusCode = error.message.includes('não encontrado') || 
+                          error.message.includes('não encontrada') || 
+                          error.message.includes('não existe') ? 404 :
+                          error.message.includes('não tem permissão') || 
+                          error.message.includes('Você não tem permissão') ? 403 : 400
 
         return NextResponse.json({ error: error.message }, { status: statusCode })
       }
