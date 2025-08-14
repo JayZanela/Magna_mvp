@@ -5,6 +5,8 @@ import { CompanyRegisterData, SigninData } from '@/lib/validations'
 import { UserService } from '../users/user.service'
 import { CompanyService } from '../companies/company.service'
 import { randomBytes } from 'crypto'
+import { NextResponse } from 'next/server'
+import { SecureCookies } from '@/lib/auth/cookies'
 
 export class AuthService {
   // SUBFUNÇÕES
@@ -49,7 +51,7 @@ export class AuthService {
   }
 
   // FUNÇÃO DE CADASTRO RÁPIDO DE EMPRESA
-  static async registerCompany(data: CompanyRegisterData) {
+  static async registerCompany(data: CompanyRegisterData, response?: NextResponse) {
     // 1. Verificar se email já existe
     const existingUser = await UserService.getUserByEmail(data.adminEmail)
     if (existingUser) {
@@ -94,9 +96,15 @@ export class AuthService {
       data: { createdBy: user.id }
     })
 
-    // 5. Gerar tokens
+    // 5. Gerar tokens e definir cookies seguros
     const { accessToken } = this.generateTokens(user.id, user.email, user.role)
     const refreshTokenRecord = await this.createRefreshToken(user.id)
+
+    // Definir cookies seguros se response for fornecido
+    if (response) {
+      SecureCookies.setAccessToken(response, accessToken)
+      SecureCookies.setRefreshToken(response, refreshTokenRecord.token)
+    }
 
     return {
       user: {
@@ -113,12 +121,10 @@ export class AuthService {
         maxUsers: company.maxUsers,
         maxProjects: company.maxProjects,
       },
-      accessToken,
-      refreshToken: refreshTokenRecord.token,
     }
   }
 
-  static async signin(data: SigninData) {
+  static async signin(data: SigninData, response?: NextResponse) {
     const user = await UserService.getUserByEmail(data.email)
     if (!user) {
       throw new Error('Email ou senha inválidos')
@@ -141,6 +147,12 @@ export class AuthService {
     const { accessToken } = this.generateTokens(user.id, user.email, user.role)
     const refreshTokenRecord = await this.createRefreshToken(user.id)
 
+    // Definir cookies seguros se response for fornecido
+    if (response) {
+      SecureCookies.setAccessToken(response, accessToken)
+      SecureCookies.setRefreshToken(response, refreshTokenRecord.token)
+    }
+
     return {
       user: {
         id: user.id,
@@ -149,25 +161,30 @@ export class AuthService {
         role: user.role,
         companyId: user.companyId,
       },
-      accessToken,
-      refreshToken: refreshTokenRecord.token,
     }
   }
 
-  static async refreshAccessToken(refreshToken: string) {
+  static async refreshAccessToken(refreshToken?: string, response?: NextResponse) {
     try {
+      // Se não recebeu o token, tentar pegar dos cookies
+      const tokenToUse = refreshToken || SecureCookies.getRefreshToken()
+      
+      if (!tokenToUse) {
+        throw new Error('INVALID_REFRESH_TOKEN')
+      }
+
       // PRIMEIRO: Validar se token existe no banco (previne timing attacks)
       const tokenRecord = await prisma.refreshToken.findFirst({
-        where: { token: refreshToken },
+        where: { token: tokenToUse },
       })
 
       if (!tokenRecord) {
-        console.warn(`[SECURITY] Tentativa de refresh com token inexistente: ${refreshToken.substring(0, 10)}...`)
+        console.warn(`[SECURITY] Tentativa de refresh com token inexistente: ${tokenToUse.substring(0, 10)}...`)
         throw new Error('INVALID_REFRESH_TOKEN')
       }
 
       if (tokenRecord.expiresAt < new Date()) {
-        console.warn(`[SECURITY] Tentativa de refresh com token expirado: ${refreshToken.substring(0, 10)}...`)
+        console.warn(`[SECURITY] Tentativa de refresh com token expirado: ${tokenToUse.substring(0, 10)}...`)
         // Limpar token expirado
         await prisma.refreshToken.delete({ where: { id: tokenRecord.id } })
         throw new Error('EXPIRED_REFRESH_TOKEN')
@@ -176,9 +193,9 @@ export class AuthService {
       // SEGUNDO: Verificar JWT apenas após validar DB
       let payload: any
       try {
-        payload = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET!) as any
+        payload = jwt.verify(tokenToUse, process.env.JWT_REFRESH_SECRET!) as any
       } catch (jwtError) {
-        console.warn(`[SECURITY] JWT inválido para token no banco: ${refreshToken.substring(0, 10)}...`)
+        console.warn(`[SECURITY] JWT inválido para token no banco: ${tokenToUse.substring(0, 10)}...`)
         // Token no banco mas JWT inválido - possível comprometimento
         await prisma.refreshToken.delete({ where: { id: tokenRecord.id } })
         throw new Error('CORRUPTED_REFRESH_TOKEN')
@@ -211,18 +228,28 @@ export class AuthService {
         user.role
       )
 
+      // Definir novos cookies seguros se response for fornecido
+      if (response) {
+        SecureCookies.setAccessToken(response, accessToken)
+        SecureCookies.setRefreshToken(response, newRefreshTokenRecord.token)
+      }
+
       console.info(`[AUTH] Token refresh realizado com sucesso para usuário ${user.id}`)
       
       return { 
-        accessToken, 
-        refreshToken: newRefreshTokenRecord.token 
+        user: {
+          id: user.id,
+          email: user.email,
+          fullName: user.fullName,
+          role: user.role,
+        },
       }
     } catch (error) {
-      if (error instanceof Error && error.message.startsWith('INVALID_') || 
+      if (error instanceof Error && (error.message.startsWith('INVALID_') || 
           error.message.startsWith('EXPIRED_') || 
           error.message.startsWith('CORRUPTED_') ||
           error.message.startsWith('TOKEN_') ||
-          error.message.startsWith('USER_')) {
+          error.message.startsWith('USER_'))) {
         throw error
       }
       console.error('[SECURITY] Erro inesperado no refresh:', error)
@@ -230,13 +257,20 @@ export class AuthService {
     }
   }
 
-  static async logout(refreshToken: string) {
+  static async logout(refreshToken?: string, response?: NextResponse) {
+    // Se não recebeu o token, tentar pegar dos cookies
+    const tokenToUse = refreshToken || SecureCookies.getRefreshToken()
+    
+    if (!tokenToUse) {
+      throw new Error('INVALID_LOGOUT_TOKEN')
+    }
+
     const tokenRecord = await prisma.refreshToken.findFirst({
-      where: { token: refreshToken },
+      where: { token: tokenToUse },
     })
 
     if (!tokenRecord) {
-      console.warn(`[SECURITY] Tentativa de logout com token inexistente: ${refreshToken.substring(0, 10)}...`)
+      console.warn(`[SECURITY] Tentativa de logout com token inexistente: ${tokenToUse.substring(0, 10)}...`)
       throw new Error('INVALID_LOGOUT_TOKEN')
     }
 
@@ -244,6 +278,11 @@ export class AuthService {
       where: { id: tokenRecord.id },
     })
 
-    console.info(`[AUTH] Logout realizado com sucesso para token ${refreshToken.substring(0, 10)}...`)
+    // Limpar cookies se response for fornecido
+    if (response) {
+      SecureCookies.clearTokens(response)
+    }
+
+    console.info(`[AUTH] Logout realizado com sucesso para token ${tokenToUse.substring(0, 10)}...`)
   }
 }

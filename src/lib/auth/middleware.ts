@@ -1,16 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import jwt from 'jsonwebtoken'
+import { SecureCookies } from './cookies'
 
 export function withAuth(handler: Function) {
   return async (request: NextRequest, context?: any) => {
     try {
-      // Extrair token do header Authorization
-      const authHeader = request.headers.get('authorization')
-      if (!authHeader?.startsWith('Bearer ')) {
+      // Tentar extrair token dos cookies primeiro
+      let token = request.cookies.get('accessToken')?.value
+      
+      // Se não encontrou nos cookies, tentar header Authorization (compatibilidade)
+      if (!token) {
+        const authHeader = request.headers.get('authorization')
+        if (authHeader?.startsWith('Bearer ')) {
+          token = authHeader.substring(7)
+        }
+      }
+      
+      if (!token) {
         return NextResponse.json({ error: 'Token não fornecido' }, { status: 401 })
       }
-
-      const token = authHeader.substring(7)
       
       // Verificar token
       const payload = jwt.verify(token, process.env.JWT_SECRET!) as any

@@ -2,37 +2,25 @@ import { ApiResponse } from '@/lib/types'
 
 class ApiClient {
   private baseURL: string
-  private token: string | null = null
 
   constructor(baseURL: string = '/api') {
     this.baseURL = baseURL
-    this.token = this.getTokenFromStorage()
   }
 
-  private getTokenFromStorage(): string | null {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('accessToken')
-    }
-    return null
-  }
-
+  // Métodos legados mantidos para compatibilidade, mas não fazem nada
   setToken(token: string) {
-    this.token = token
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('accessToken', token)
-    }
+    // Cookies são gerenciados automaticamente pelo servidor
+    // Método mantido para compatibilidade
   }
 
   removeToken() {
-    this.token = null
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('accessToken')
-      localStorage.removeItem('refreshToken')
-    }
+    // Limpeza de cookies é feita pelo servidor via logout
+    // Método mantido para compatibilidade
   }
 
   getStoredToken(): string | null {
-    return this.token
+    // Tokens agora estão em cookies httpOnly, não acessíveis via JavaScript
+    return null
   }
 
   private async request<T = any>(
@@ -44,9 +32,9 @@ class ApiClient {
     const config: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
-        ...(this.token && { Authorization: `Bearer ${this.token}` }),
         ...options.headers,
       },
+      credentials: 'include', // Importante para enviar cookies httpOnly
       ...options,
     }
 
@@ -94,9 +82,7 @@ class ApiClient {
 
     return this.request<T>(endpoint, {
       method: 'POST',
-      headers: {
-        ...(this.token && { Authorization: `Bearer ${this.token}` }),
-      },
+      credentials: 'include', // Para enviar cookies httpOnly
       body: formData,
     })
   }

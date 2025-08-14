@@ -22,9 +22,8 @@ export function useLogin() {
     mutationFn: authApi.login,
     onSuccess: (data) => {
       queryClient.setQueryData(AUTH_KEYS.user, data.user)
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('refreshToken', data.refreshToken)
-      }
+      // RefreshToken agora é gerenciado via cookies httpOnly pelo servidor
+      // Não precisamos mais armazená-lo no localStorage
     },
   })
 }
@@ -36,9 +35,8 @@ export function useRegister() {
     mutationFn: authApi.register,
     onSuccess: (data) => {
       queryClient.setQueryData(AUTH_KEYS.user, data.user)
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('refreshToken', data.refreshToken)
-      }
+      // RefreshToken agora é gerenciado via cookies httpOnly pelo servidor
+      // Não precisamos mais armazená-lo no localStorage
     },
   })
 }
@@ -62,9 +60,8 @@ export function useRefreshToken() {
     mutationFn: authApi.refreshToken,
     onSuccess: (data) => {
       queryClient.setQueryData(AUTH_KEYS.user, data.user)
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('refreshToken', data.refreshToken)
-      }
+      // RefreshToken agora é gerenciado via cookies httpOnly pelo servidor
+      // Não precisamos mais armazená-lo no localStorage
     },
   })
 }

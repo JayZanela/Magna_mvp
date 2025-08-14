@@ -5,9 +5,8 @@ export const authApi = {
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     const response = await apiClient.post<AuthResponse>('/auth/signin', credentials)
     
-    if (response.accessToken) {
-      apiClient.setToken(response.accessToken)
-    }
+    // Tokens agora são gerenciados via cookies httpOnly pelo servidor
+    // Não é mais necessário setar tokens manualmente
     
     return response
   },
@@ -15,45 +14,36 @@ export const authApi = {
   async register(data: RegisterData): Promise<AuthResponse> {
     const response = await apiClient.post<AuthResponse>('/auth/register', data)
     
-    if (response.accessToken) {
-      apiClient.setToken(response.accessToken)
-    }
+    // Tokens agora são gerenciados via cookies httpOnly pelo servidor
+    // Não é mais necessário setar tokens manualmente
     
     return response
   },
 
   async logout(): Promise<void> {
     await apiClient.post('/auth/logout')
-    apiClient.removeToken()
+    // Cookies são limpos pelo servidor automaticamente
   },
 
   async refreshToken(): Promise<AuthResponse> {
-    const refreshToken = localStorage.getItem('refreshToken')
-    if (!refreshToken) {
-      throw new Error('No refresh token available')
-    }
-
-    const response = await apiClient.post<AuthResponse>('/auth/refresh', {
-      refreshToken
-    })
+    // RefreshToken agora é enviado automaticamente via cookies httpOnly
+    // Não precisamos mais acessá-lo via localStorage
+    const response = await apiClient.post<AuthResponse>('/auth/refresh', {})
     
-    if (response.accessToken) {
-      apiClient.setToken(response.accessToken)
-    }
+    // Novos tokens são setados automaticamente via cookies pelo servidor
     
     return response
   },
 
   async getCurrentUser(): Promise<User | null> {
-    const token = apiClient.getStoredToken()
-    if (!token) return null
-    
-    const { getUserFromToken, isTokenExpired } = await import('@/lib/auth/token')
-    
-    if (isTokenExpired(token)) {
+    try {
+      // Usar o novo endpoint /auth/me para obter dados do usuário atual
+      // Os cookies httpOnly serão enviados automaticamente
+      const response = await apiClient.get<{ user: User }>('/auth/me')
+      return response.user
+    } catch {
+      // Se der erro (401, 403, etc), usuário não está autenticado
       return null
     }
-    
-    return getUserFromToken(token)
   }
 }

@@ -10,9 +10,10 @@ export class AuthController {
       const body = await request.json()
       const validatedData = companyRegisterSchema.parse(body)
       
-      const result = await AuthService.registerCompany(validatedData)
+      const response = NextResponse.json({}, { status: 201 })
+      const result = await AuthService.registerCompany(validatedData, response)
       
-      return NextResponse.json(result, { status: 201 })
+      return NextResponse.json(result, { status: 201, headers: response.headers })
     } catch (error) {
       console.error('Error registering company:', error)
       
@@ -56,9 +57,10 @@ export class AuthController {
       const body = await request.json()
       const validatedData = signinSchema.parse(body)
       
-      const result = await AuthService.signin(validatedData)
+      const response = NextResponse.json({})
+      const result = await AuthService.signin(validatedData, response)
       
-      return NextResponse.json(result)
+      return NextResponse.json(result, { headers: response.headers })
     } catch (error) {
       console.error('Error signing in user:', error)
       
@@ -102,9 +104,10 @@ export class AuthController {
       const body = await request.json()
       const validatedData = refreshTokenSchema.parse(body)
       
-      const result = await AuthService.refreshAccessToken(validatedData.refreshToken)
+      const response = NextResponse.json({})
+      const result = await AuthService.refreshAccessToken(validatedData.refreshToken, response)
       
-      return NextResponse.json(result)
+      return NextResponse.json(result, { headers: response.headers })
     } catch (error) {
       console.error('Error refreshing token:', error)
       
@@ -162,12 +165,21 @@ export class AuthController {
         )
       }
 
-      const body = await request.json()
-      const validatedData = refreshTokenSchema.parse(body)
+      const response = NextResponse.json({ message: 'Logout realizado com sucesso' })
       
-      await AuthService.logout(validatedData.refreshToken)
+      // Tentar pegar refreshToken do body, se não existir usará cookies
+      let refreshToken: string | undefined
+      try {
+        const body = await request.json()
+        const validatedData = refreshTokenSchema.parse(body)
+        refreshToken = validatedData.refreshToken
+      } catch {
+        // Se falhar na validação, deixar undefined para usar cookies
+      }
       
-      return NextResponse.json({ message: 'Logout realizado com sucesso' })
+      await AuthService.logout(refreshToken, response)
+      
+      return response
     } catch (error) {
       console.error('Error logging out user:', error)
       
