@@ -2,24 +2,33 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Loading } from '@/components/common/Loading'
 import { ErrorMessage } from '@/components/common/ErrorMessage'
+import { useLogin } from '@/hooks'
 
-export function LoginForm() {
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+interface LoginFormProps {
+  onSuccess?: () => void
+}
 
-  const handleSubmit = async (e: React.FormEvent) => {
+export function LoginForm({ onSuccess }: LoginFormProps) {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  
+  const loginMutation = useLogin()
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
-    setError('')
-
-    // Simular login
-    setTimeout(() => {
-      setLoading(false)
-      setError('Funcionalidade em desenvolvimento')
-    }, 1000)
+    
+    loginMutation.mutate(
+      { email, password },
+      {
+        onSuccess: () => {
+          onSuccess?.()
+        }
+      }
+    )
   }
 
   return (
@@ -29,34 +38,30 @@ export function LoginForm() {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
-            <input
-              type="email"
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="seu@email.com"
-            />
-          </div>
+          <Input
+            type="email"
+            label="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="seu@email.com"
+            required
+          />
           
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Senha
-            </label>
-            <input
-              type="password"
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="********"
-            />
-          </div>
+          <Input
+            type="password"
+            label="Senha"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="********"
+            required
+          />
 
-          {error && <ErrorMessage message={error} />}
+          {loginMutation.error && (
+            <ErrorMessage message={loginMutation.error.message} />
+          )}
 
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? <Loading size="sm" /> : 'Entrar'}
+          <Button type="submit" className="w-full" disabled={loginMutation.isPending}>
+            {loginMutation.isPending ? <Loading size="sm" /> : 'Entrar'}
           </Button>
         </form>
       </CardContent>

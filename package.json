@@ -16,6 +16,8 @@
   "dependencies": {
     "@anthropic-ai/claude-code": "^1.0.77",
     "@prisma/client": "^5.15.0",
+    "@tanstack/react-query": "^5.85.0",
+    "@tanstack/react-query-devtools": "^5.85.0",
     "bcryptjs": "^3.0.2",
     "cookie": "^1.0.2",
     "jsonwebtoken": "^9.0.2",
