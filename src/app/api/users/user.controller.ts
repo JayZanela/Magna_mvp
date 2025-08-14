@@ -4,9 +4,9 @@ import { userCreateSchema, userUpdateSchema } from '@/lib/validations'
 import { z } from 'zod'
 
 export class UserController {
-  static async getUsers(): Promise<NextResponse> {
+  static async getUsers(requesterId?: number): Promise<NextResponse> {
     try {
-      const users = await UserService.getAllUsers()
+      const users = await UserService.getAllUsers(requesterId)
       return NextResponse.json(users)
     } catch (error) {
       console.error('Error fetching users:', error)
@@ -50,7 +50,10 @@ export class UserController {
       const body = await request.json()
       const validatedData = userCreateSchema.parse(body)
       
-      const user = await UserService.createUser(validatedData)
+      // Extrair userId do token de autenticação se disponível
+      const requesterId = (request as any).user?.id
+      
+      const user = await UserService.createUser(validatedData, requesterId)
       
       return NextResponse.json(user, { status: 201 })
     } catch (error) {
@@ -89,7 +92,10 @@ export class UserController {
       const body = await request.json()
       const validatedData = userUpdateSchema.parse(body)
       
-      const user = await UserService.updateUser(id, validatedData)
+      // Extrair userId do token de autenticação
+      const requesterId = (request as any).user?.id
+      
+      const user = await UserService.updateUser(id, validatedData, requesterId)
       
       return NextResponse.json(user)
     } catch (error) {
@@ -116,7 +122,7 @@ export class UserController {
     }
   }
 
-  static async deleteUser(id: number): Promise<NextResponse> {
+  static async deleteUser(id: number, requesterId?: number): Promise<NextResponse> {
     try {
       if (!id || isNaN(id)) {
         return NextResponse.json(
@@ -125,7 +131,7 @@ export class UserController {
         )
       }
 
-      const user = await UserService.deleteUser(id)
+      const user = await UserService.deleteUser(id, requesterId)
       
       return NextResponse.json(user)
     } catch (error) {

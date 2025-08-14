@@ -1,5 +1,6 @@
 import { ProjectCreate, ProjectUpdate, ProjectMember, ProjectMemberUpdate } from '@/lib/validations'
 import { prisma } from '@/lib/db'
+import { CompanyService } from '../companies/company.service'
 
 export class ProjectService {
   static async getProjectById(id: number) {
@@ -24,16 +25,30 @@ export class ProjectService {
   }
 
   static async getUserProjects(userId: number) {
+    // Buscar usuário para obter companyId
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { companyId: true }
+    })
+
+    if (!user) {
+      throw new Error('Usuário não encontrado')
+    }
+
+    // Buscar projetos onde o owner pertence à mesma empresa
     const ownedProjects = await prisma.project.findMany({
-      where: { ownerId: userId },
+      where: { 
+        ownerId: userId,
+        owner: { companyId: user.companyId }
+      },
       include: {
         owner: {
-          select: { id: true, email: true, fullName: true, role: true }
+          select: { id: true, email: true, fullName: true, role: true, companyId: true }
         },
         members: {
           include: {
             user: {
-              select: { id: true, email: true, fullName: true, role: true }
+              select: { id: true, email: true, fullName: true, role: true, companyId: true }
             }
           }
         },
@@ -47,17 +62,20 @@ export class ProjectService {
     const memberProjects = await prisma.project.findMany({
       where: {
         members: {
-          some: { userId }
+          some: { 
+            userId,
+            user: { companyId: user.companyId }
+          }
         }
       },
       include: {
         owner: {
-          select: { id: true, email: true, fullName: true, role: true }
+          select: { id: true, email: true, fullName: true, role: true, companyId: true }
         },
         members: {
           include: {
             user: {
-              select: { id: true, email: true, fullName: true, role: true }
+              select: { id: true, email: true, fullName: true, role: true, companyId: true }
             }
           }
         },
@@ -82,6 +100,22 @@ export class ProjectService {
   }
 
   static async createProject(data: ProjectCreate, ownerId: number) {
+    // Buscar usuário para obter companyId
+    const user = await prisma.user.findUnique({
+      where: { id: ownerId },
+      select: { companyId: true }
+    })
+
+    if (!user) {
+      throw new Error('Usuário não encontrado')
+    }
+
+    // Verificar se a empresa não excedeu o limite de projetos
+    const limits = await CompanyService.validateCompanyLimits(user.companyId)
+    if (!limits.canAddProject) {
+      throw new Error('Empresa atingiu o limite máximo de projetos')
+    }
+
     const project = await prisma.project.create({
       data: {
         name: data.name,
@@ -91,7 +125,7 @@ export class ProjectService {
       },
       include: {
         owner: {
-          select: { id: true, email: true, fullName: true, role: true }
+          select: { id: true, email: true, fullName: true, role: true, companyId: true }
         }
       }
     })
@@ -183,11 +217,28 @@ export class ProjectService {
       throw new Error('Apenas o proprietário pode adicionar membros')
     }
 
-    const userExists = await prisma.user.findUnique({
-      where: { id: memberData.userId }
+    // Buscar o usuário a ser adicionado
+    const userToAdd = await prisma.user.findUnique({
+      where: { id: memberData.userId },
+      select: { id: true, companyId: true, email: true, fullName: true, role: true }
     })
-    if (!userExists) {
+    if (!userToAdd) {
       throw new Error('Usuário não encontrado')
+    }
+
+    // Buscar o requester para verificar se são da mesma empresa
+    const requester = await prisma.user.findUnique({
+      where: { id: requesterId },
+      select: { companyId: true }
+    })
+
+    if (!requester) {
+      throw new Error('Requester não encontrado')
+    }
+
+    // Verificar se usuário pertence à mesma empresa
+    if (userToAdd.companyId !== requester.companyId) {
+      throw new Error('Só é possível adicionar usuários da mesma empresa')
     }
 
     const existingMember = await prisma.projectMember.findUnique({
@@ -211,7 +262,7 @@ export class ProjectService {
       },
       include: {
         user: {
-          select: { id: true, email: true, fullName: true, role: true }
+          select: { id: true, email: true, fullName: true, role: true, companyId: true }
         }
       }
     })

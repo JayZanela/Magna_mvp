@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
@@ -15,6 +16,7 @@ interface LoginFormProps {
 export function LoginForm({ onSuccess }: LoginFormProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const router = useRouter()
   
   const loginMutation = useLogin()
 
@@ -63,6 +65,16 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
           <Button type="submit" className="w-full" disabled={loginMutation.isPending}>
             {loginMutation.isPending ? <Loading size="sm" /> : 'Entrar'}
           </Button>
+
+          <div className="text-center mt-4">
+            <button
+              type="button"
+              onClick={() => router.push('/register')}
+              className="text-sm text-blue-600 hover:text-blue-500 font-medium"
+            >
+              Não tem conta? Cadastre sua empresa
+            </button>
+          </div>
         </form>
       </CardContent>
     </Card>

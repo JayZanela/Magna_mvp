@@ -7,6 +7,42 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Company {
+  id               Int       @id @default(autoincrement())
+  name             String    @map("name")
+  tradingName      String?   @map("trading_name")
+  cnpj             String?   @unique @map("cnpj")
+  cpf              String?   @map("cpf")
+  industry         String?   @map("industry")
+  businessType     String    @default("tech_department") @map("business_type")
+  address          String?   @map("address")
+  city             String?   @map("city")
+  state            String?   @map("state")
+  zipcode          String?   @map("zipcode")
+  country          String    @default("BR") @map("country")
+  subdomain        String?   @unique @map("subdomain")
+  isActive         Boolean   @default(true) @map("is_active")
+  trialExpiresAt   DateTime? @map("trial_expires_at")
+  maxProjects      Int       @default(3) @map("max_projects")
+  maxUsers         Int       @default(10) @map("max_users")
+  maxStorageGb     Int       @default(5) @map("max_storage_gb")
+  planType         String    @default("trial") @map("plan_type")
+  monthlyValue     Float?    @map("monthly_value")
+  billingDay       Int       @default(1) @map("billing_day")
+  paymentMethod    String    @default("credit_card") @map("payment_method")
+  salesContact     String?   @map("sales_contact")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  createdBy        Int?      @map("created_by")
+  users            User[]
+
+  @@index([cnpj])
+  @@index([subdomain])
+  @@index([businessType])
+  @@index([planType])
+  @@map("companies")
+}
+
 model User {
   id                 Int                @id @default(autoincrement())
   email              String             @unique
@@ -16,6 +52,7 @@ model User {
   isActive           Boolean            @default(true) @map("is_active")
   lastLoginAt        DateTime?          @map("last_login_at")
   createdAt          DateTime           @default(now()) @map("created_at")
+  companyId          Int                @map("company_id")
   uploads            Attachment[]
   comments           ExecutionComment[]
   projectMemberships ProjectMember[]
@@ -24,8 +61,10 @@ model User {
   createdScenarios   TestScenario[]     @relation("ScenarioCreator")
   assignedScenarios  TestScenario[]     @relation("ScenarioAssignee")
   refreshTokens      RefreshToken[]
+  company            Company            @relation(fields: [companyId], references: [id])
 
   @@index([email])
+  @@index([companyId])
   @@map("users")
 }
 

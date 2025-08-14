@@ -1,36 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { AuthService } from './auth.service'
-import { registerSchema, signinSchema, refreshTokenSchema } from '@/lib/validations'
+import { companyRegisterSchema, signinSchema, refreshTokenSchema } from '@/lib/validations'
 import { checkRateLimit, getClientIP } from '@/lib/auth/rateLimit'
 import { z } from 'zod'
 
 export class AuthController {
-  static async register(request: NextRequest): Promise<NextResponse> {
+  static async registerCompany(request: NextRequest): Promise<NextResponse> {
     try {
       const body = await request.json()
-      const validatedData = registerSchema.parse(body)
+      const validatedData = companyRegisterSchema.parse(body)
       
-      const result = await AuthService.register(validatedData)
+      const result = await AuthService.registerCompany(validatedData)
       
       return NextResponse.json(result, { status: 201 })
     } catch (error) {
-      console.error('Error registering user:', error)
+      console.error('Error registering company:', error)
       
       if (error instanceof z.ZodError) {
         return NextResponse.json(
-          { error: 'Invalid data', details: error.errors },
+          { error: 'Dados inválidos', details: error.errors },
           { status: 400 }
         )
       }
 
       if (error instanceof Error) {
-        // Verificar se é erro de constraint do Prisma
-        if (error.message.includes('Unique constraint failed on the fields: (`email`)')) {
-          return NextResponse.json(
-            { error: 'Email já está em uso' },
-            { status: 400 }
-          )
-        }
         return NextResponse.json(
           { error: error.message },
           { status: 400 }
@@ -38,7 +31,7 @@ export class AuthController {
       }
       
       return NextResponse.json(
-        { error: 'Failed to register user' },
+        { error: 'Falha ao cadastrar empresa' },
         { status: 500 }
       )
     }

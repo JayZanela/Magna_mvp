@@ -6,6 +6,7 @@ export const userCreateSchema = z.object({
   passwordHash: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
   role: z.enum(['admin', 'manager', 'tester', 'guest']).default('tester'),
   isActive: z.boolean().default(true),
+  companyId: z.number().int().positive('ID da empresa deve ser um número positivo'),
 })
 
 export const userUpdateSchema = z.object({
@@ -17,15 +18,28 @@ export const userUpdateSchema = z.object({
     .optional(),
   role: z.enum(['admin', 'manager', 'tester', 'guest']).optional(),
   isActive: z.boolean().optional(),
+  companyId: z.number().int().positive('ID da empresa deve ser um número positivo').optional(),
 })
 
-// Validações de autenticação
-export const registerSchema = z.object({
-  email: z.string().email('Email deve ter um formato válido'),
-  password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
-  fullName: z.string().min(2, 'Nome completo deve ter pelo menos 2 caracteres'),
+// Validação para cadastro rápido de empresa + primeiro usuário
+export const companyRegisterSchema = z.object({
+  // Dados da empresa (mínimo necessário)
+  companyName: z.string().min(2, 'Nome da empresa deve ter pelo menos 2 caracteres'),
+  businessType: z.enum(['software_house', 'tech_department', 'consultancy', 'other']).default('tech_department'),
+  
+  // Dados do primeiro usuário (admin)
+  adminName: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
+  adminEmail: z.string().email('Email deve ter um formato válido'),
+  adminPassword: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
+  
+  // Campos opcionais para empresa
+  tradingName: z.string().optional(),
+  industry: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().max(2).optional(),
 })
 
+// Validação simples para login
 export const signinSchema = z.object({
   email: z.string().email('Email deve ter um formato válido'),
   password: z.string().min(1, 'Senha é obrigatória'),
@@ -33,6 +47,55 @@ export const signinSchema = z.object({
 
 export const refreshTokenSchema = z.object({
   refreshToken: z.string().min(1, 'Refresh token é obrigatório'),
+})
+
+// Validações de empresas - Versão simplificada para cadastro rápido
+export const companyCreateSchema = z.object({
+  name: z.string().min(2, 'Nome da empresa deve ter pelo menos 2 caracteres'),
+  tradingName: z.string().optional(),
+  businessType: z.enum(['software_house', 'tech_department', 'consultancy', 'other']).default('tech_department'),
+  // Campos opcionais que podem ser preenchidos depois
+  industry: z.string().optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().max(2).optional(),
+  zipcode: z.string().optional(),
+  cnpj: z.string().optional(),
+  cpf: z.string().optional(),
+  subdomain: z.string().optional(),
+  // Configurações com valores padrão adequados
+  maxProjects: z.number().int().min(1).default(5),
+  maxUsers: z.number().int().min(1).default(15),
+  maxStorageGb: z.number().int().min(1).default(10),
+  planType: z.enum(['trial', 'basic', 'professional', 'enterprise']).default('trial'),
+  country: z.string().max(2).default('BR'),
+  billingDay: z.number().int().min(1).max(28).default(1),
+  paymentMethod: z.enum(['credit_card', 'bank_slip', 'pix']).default('credit_card'),
+})
+
+export const companyUpdateSchema = z.object({
+  name: z.string().min(1, 'Razão social é obrigatória').optional(),
+  tradingName: z.string().optional(),
+  cnpj: z.string().regex(/^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/, 'CNPJ deve estar no formato 00.000.000/0000-00').optional(),
+  cpf: z.string().regex(/^\d{3}\.\d{3}\.\d{3}-\d{2}$/, 'CPF deve estar no formato 000.000.000-00').optional(),
+  industry: z.string().optional(),
+  businessType: z.enum(['software_house', 'tech_department', 'consultancy', 'other']).optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().max(2, 'Estado deve ter no máximo 2 caracteres').optional(),
+  zipcode: z.string().regex(/^\d{5}-?\d{3}$/, 'CEP deve estar no formato 00000-000').optional(),
+  country: z.string().max(2, 'País deve ter 2 caracteres').optional(),
+  subdomain: z.string().min(3, 'Subdomínio deve ter pelo menos 3 caracteres').regex(/^[a-z0-9-]+$/, 'Subdomínio deve conter apenas letras minúsculas, números e hífens').optional(),
+  isActive: z.boolean().optional(),
+  trialExpiresAt: z.date().optional(),
+  maxProjects: z.number().int().min(1, 'Limite de projetos deve ser pelo menos 1').optional(),
+  maxUsers: z.number().int().min(1, 'Limite de usuários deve ser pelo menos 1').optional(),
+  maxStorageGb: z.number().int().min(1, 'Limite de armazenamento deve ser pelo menos 1GB').optional(),
+  planType: z.enum(['trial', 'basic', 'professional', 'enterprise']).optional(),
+  monthlyValue: z.number().min(0, 'Valor mensal deve ser positivo').optional(),
+  billingDay: z.number().int().min(1).max(28, 'Dia de vencimento deve estar entre 1 e 28').optional(),
+  paymentMethod: z.enum(['credit_card', 'bank_slip', 'pix']).optional(),
+  salesContact: z.string().optional(),
 })
 
 // Validações de projetos
@@ -106,7 +169,7 @@ export const suiteMoveSchema = z.object({
 // Tipos inferidos
 export type UserCreate = z.infer<typeof userCreateSchema>
 export type UserUpdate = z.infer<typeof userUpdateSchema>
-export type RegisterData = z.infer<typeof registerSchema>
+export type CompanyRegisterData = z.infer<typeof companyRegisterSchema>
 export type SigninData = z.infer<typeof signinSchema>
 export type RefreshTokenData = z.infer<typeof refreshTokenSchema>
 export type ProjectCreate = z.infer<typeof projectCreateSchema>
@@ -219,3 +282,5 @@ export type ExecutionStart = z.infer<typeof executionStartSchema>
 export type CommentCreate = z.infer<typeof commentCreateSchema>
 export type CommentUpdate = z.infer<typeof commentUpdateSchema>
 export type AttachmentCreate = z.infer<typeof attachmentCreateSchema>
+export type CompanyCreate = z.infer<typeof companyCreateSchema>
+export type CompanyUpdate = z.infer<typeof companyUpdateSchema>

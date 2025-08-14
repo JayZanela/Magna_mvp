@@ -1,8 +1,9 @@
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { prisma } from '@/lib/db'
-import { RegisterData, SigninData } from '@/lib/validations'
+import { CompanyRegisterData, SigninData } from '@/lib/validations'
 import { UserService } from '../users/user.service'
+import { CompanyService } from '../companies/company.service'
 import { randomBytes } from 'crypto'
 
 export class AuthService {
@@ -47,25 +48,53 @@ export class AuthService {
     return { accessToken }
   }
 
-  // FUNÇÕES CORE
-  static async register(data: RegisterData) {
-    const existingUser = await UserService.getUserByEmail(data.email)
+  // FUNÇÃO DE CADASTRO RÁPIDO DE EMPRESA
+  static async registerCompany(data: CompanyRegisterData) {
+    // 1. Verificar se email já existe
+    const existingUser = await UserService.getUserByEmail(data.adminEmail)
     if (existingUser) {
-      throw new Error('Email já está em uso')
+      throw new Error('Este email já está em uso')
     }
 
-    const hashedPassword = await bcrypt.hash(data.password, 12)
+    // 2. Criar empresa com dados mínimos
+    const company = await CompanyService.createCompany({
+      name: data.companyName,
+      tradingName: data.tradingName,
+      businessType: data.businessType,
+      industry: data.industry,
+      city: data.city,
+      state: data.state,
+      // Valores padrão generosos para trial
+      maxProjects: 5,
+      maxUsers: 15,
+      maxStorageGb: 10,
+      planType: 'trial',
+      country: 'BR',
+      billingDay: 1,
+      paymentMethod: 'credit_card',
+    })
+
+    // 3. Criar primeiro usuário como admin
+    const hashedPassword = await bcrypt.hash(data.adminPassword, 12)
 
     const user = await prisma.user.create({
       data: {
-        email: data.email,
-        fullName: data.fullName,
+        email: data.adminEmail,
+        fullName: data.adminName,
         passwordHash: hashedPassword,
-        role: 'tester',
+        role: 'admin',
         isActive: true,
+        companyId: company.id,
       },
     })
 
+    // 4. Atualizar empresa com o criador
+    await prisma.company.update({
+      where: { id: company.id },
+      data: { createdBy: user.id }
+    })
+
+    // 5. Gerar tokens
     const { accessToken } = this.generateTokens(user.id, user.email, user.role)
     const refreshTokenRecord = await this.createRefreshToken(user.id)
 
@@ -75,6 +104,14 @@ export class AuthService {
         email: user.email,
         fullName: user.fullName,
         role: user.role,
+        companyId: user.companyId,
+      },
+      company: {
+        id: company.id,
+        name: company.name,
+        planType: company.planType,
+        maxUsers: company.maxUsers,
+        maxProjects: company.maxProjects,
       },
       accessToken,
       refreshToken: refreshTokenRecord.token,
@@ -110,6 +147,7 @@ export class AuthService {
         email: user.email,
         fullName: user.fullName,
         role: user.role,
+        companyId: user.companyId,
       },
       accessToken,
       refreshToken: refreshTokenRecord.token,
