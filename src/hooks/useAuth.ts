@@ -23,10 +23,10 @@ export function useLogin() {
   
   return useMutation({
     mutationFn: authApi.login,
-    onSuccess: (data) => {
-      queryClient.setQueryData(AUTH_KEYS.user, data.user)
-      // RefreshToken agora é gerenciado via cookies httpOnly pelo servidor
-      // Não precisamos mais armazená-lo no localStorage
+    onSuccess: async () => {
+      // SEMPRE buscar dados atualizados via /me após login
+      // Isso garante consistência e dados completos (incluindo empresa)
+      await queryClient.refetchQueries({ queryKey: AUTH_KEYS.user })
       
       // Marcar que o usuário acabou de fazer login para redirecionamento
       if (typeof window !== 'undefined') {
@@ -41,10 +41,15 @@ export function useRegister() {
   
   return useMutation({
     mutationFn: authApi.register,
-    onSuccess: (data) => {
-      queryClient.setQueryData(AUTH_KEYS.user, data.user)
-      // RefreshToken agora é gerenciado via cookies httpOnly pelo servidor
-      // Não precisamos mais armazená-lo no localStorage
+    onSuccess: async () => {
+      // SEMPRE buscar dados atualizados via /me após registro
+      // Isso garante consistência e dados completos (incluindo empresa)
+      await queryClient.refetchQueries({ queryKey: AUTH_KEYS.user })
+      
+      // Marcar que o usuário acabou de se registrar
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('justLoggedIn', 'true')
+      }
     },
   })
 }
@@ -81,10 +86,10 @@ export function useRefreshToken() {
   
   return useMutation({
     mutationFn: authApi.refreshToken,
-    onSuccess: (data) => {
-      queryClient.setQueryData(AUTH_KEYS.user, data.user)
-      // RefreshToken agora é gerenciado via cookies httpOnly pelo servidor
-      // Não precisamos mais armazená-lo no localStorage
+    onSuccess: async () => {
+      // SEMPRE buscar dados atualizados via /me após refresh
+      // Isso garante consistência e dados completos (incluindo empresa)
+      await queryClient.refetchQueries({ queryKey: AUTH_KEYS.user })
     },
   })
 }

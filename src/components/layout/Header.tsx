@@ -30,9 +30,14 @@ export function Header() {
               <div className="w-24 h-8 bg-gray-200 animate-pulse rounded"></div>
             ) : user ? (
               <div className="flex items-center space-x-4">
-                <span className="text-sm text-gray-700">
-                  Olá, {user.fullName}
-                </span>
+                <div className="text-sm text-gray-700">
+                  <div>Olá, {user.fullName}</div>
+                  {user.company && (
+                    <div className="text-xs text-gray-500">
+                      {user.company.name}
+                    </div>
+                  )}
+                </div>
                 <Button
                   variant="outline"
                   size="sm"

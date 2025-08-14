@@ -1,3 +1,9 @@
+export interface Company {
+  id: number
+  name: string
+  planType: string
+}
+
 export interface User {
   id: number
   email: string
@@ -6,6 +12,8 @@ export interface User {
   isActive: boolean
   lastLoginAt?: string
   createdAt: string
+  companyId?: number
+  company?: Company
 }
 
 export interface Project {

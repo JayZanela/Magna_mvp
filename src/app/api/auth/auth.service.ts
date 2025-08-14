@@ -107,20 +107,8 @@ export class AuthService {
     }
 
     return {
-      user: {
-        id: user.id,
-        email: user.email,
-        fullName: user.fullName,
-        role: user.role,
-        companyId: user.companyId,
-      },
-      company: {
-        id: company.id,
-        name: company.name,
-        planType: company.planType,
-        maxUsers: company.maxUsers,
-        maxProjects: company.maxProjects,
-      },
+      success: true,
+      message: 'Company registered successfully'
     }
   }
 
@@ -154,13 +142,8 @@ export class AuthService {
     }
 
     return {
-      user: {
-        id: user.id,
-        email: user.email,
-        fullName: user.fullName,
-        role: user.role,
-        companyId: user.companyId,
-      },
+      success: true,
+      message: 'Login successful'
     }
   }
 
@@ -237,12 +220,8 @@ export class AuthService {
       console.info(`[AUTH] Token refresh realizado com sucesso para usuário ${user.id}`)
       
       return { 
-        user: {
-          id: user.id,
-          email: user.email,
-          fullName: user.fullName,
-          role: user.role,
-        },
+        success: true,
+        message: 'Token refreshed successfully'
       }
     } catch (error) {
       if (error instanceof Error && (error.message.startsWith('INVALID_') || 

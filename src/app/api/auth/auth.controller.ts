@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { AuthService } from './auth.service'
+import { UserService } from '../users/user.service'
 import { companyRegisterSchema, signinSchema, refreshTokenSchema } from '@/lib/validations'
 import { checkRateLimit, getClientIP } from '@/lib/auth/rateLimit'
 import { z } from 'zod'
@@ -207,6 +208,52 @@ export class AuthController {
       
       return NextResponse.json(
         { error: 'Falha no logout' },
+        { status: 500 }
+      )
+    }
+  }
+
+  static async getCurrentUser(request: NextRequest): Promise<NextResponse> {
+    try {
+      // Dados do token vêm do middleware withAuth
+      const tokenUser = (request as any).user
+      
+      if (!tokenUser?.id) {
+        return NextResponse.json(
+          { error: 'Token inválido ou dados incompletos' },
+          { status: 401 }
+        )
+      }
+      
+      // Buscar dados completos do usuário + empresa via UserService (boa prática)
+      const fullUser = await UserService.getUserWithCompanyById(tokenUser.id)
+
+      if (!fullUser) {
+        return NextResponse.json(
+          { error: 'Usuário não encontrado' },
+          { status: 404 }
+        )
+      }
+      
+      return NextResponse.json({
+        user: {
+          id: fullUser.id,
+          email: fullUser.email,
+          fullName: fullUser.fullName,
+          role: fullUser.role,
+          companyId: fullUser.companyId,
+          isActive: fullUser.isActive,
+          company: fullUser.company ? {
+            id: fullUser.company.id,
+            name: fullUser.company.name,
+            planType: fullUser.company.planType
+          } : null
+        }
+      })
+    } catch (error) {
+      console.error('Error getting current user:', error)
+      return NextResponse.json(
+        { error: 'Falha ao buscar dados do usuário' },
         { status: 500 }
       )
     }

@@ -1,22 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { withAuth } from '@/lib/auth/middleware'
+import { AuthController } from '../auth.controller'
 
+// ✅ ARQUITETURA CORRETA: Route → Controller → Service → Prisma
 export const GET = withAuth(async (request: NextRequest) => {
-  try {
-    const user = (request as any).user
-    
-    return NextResponse.json({
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role
-      }
-    })
-  } catch (error) {
-    console.error('Error getting current user:', error)
-    return NextResponse.json(
-      { error: 'Failed to get current user' },
-      { status: 500 }
-    )
-  }
+  return await AuthController.getCurrentUser(request)
 })

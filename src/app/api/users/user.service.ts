@@ -7,6 +7,21 @@ export class UserService {
     return await prisma.user.findUnique({ where: { id: id } })
   }
 
+  static async getUserWithCompanyById(id: number) {
+    return await prisma.user.findUnique({ 
+      where: { id: id },
+      include: {
+        company: {
+          select: { 
+            id: true, 
+            name: true,
+            planType: true
+          }
+        }
+      }
+    })
+  }
+
   static async getUserByEmail(email: string) {
     return await prisma.user.findUnique({ where: { email: email } })
   }
