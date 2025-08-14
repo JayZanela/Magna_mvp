@@ -1,12 +1,16 @@
 'use client'
 
 import { Header } from './Header'
+import { useAuthManager } from '@/hooks/useAuthManager'
 
 interface LayoutProps {
   children: React.ReactNode
 }
 
 export function Layout({ children }: LayoutProps) {
+  // Inicializar o gerenciador de autenticação em todos os componentes que usam Layout
+  useAuthManager()
+  
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />

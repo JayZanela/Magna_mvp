@@ -11,7 +11,10 @@ export function useCurrentUser() {
     queryKey: AUTH_KEYS.user,
     queryFn: authApi.getCurrentUser,
     retry: false,
-    enabled: typeof window !== 'undefined' // Only run on client
+    enabled: typeof window !== 'undefined', // Only run on client
+    refetchOnWindowFocus: false, // Evitar refetch desnecessário
+    refetchOnReconnect: false, // Evitar refetch desnecessário
+    staleTime: 5 * 60 * 1000, // Cache por 5 minutos
   })
 }
 
@@ -24,6 +27,11 @@ export function useLogin() {
       queryClient.setQueryData(AUTH_KEYS.user, data.user)
       // RefreshToken agora é gerenciado via cookies httpOnly pelo servidor
       // Não precisamos mais armazená-lo no localStorage
+      
+      // Marcar que o usuário acabou de fazer login para redirecionamento
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('justLoggedIn', 'true')
+      }
     },
   })
 }
@@ -47,9 +55,24 @@ export function useLogout() {
   return useMutation({
     mutationFn: authApi.logout,
     onSuccess: () => {
-      queryClient.removeQueries({ queryKey: AUTH_KEYS.user })
+      // Limpeza completa e agressiva do cache
       queryClient.clear()
+      queryClient.invalidateQueries()
+      
+      // Remover especificamente dados sensíveis
+      queryClient.removeQueries({ queryKey: AUTH_KEYS.user })
+      queryClient.removeQueries({ queryKey: ['projects'] })
+      queryClient.removeQueries({ queryKey: ['scenarios'] })
+      queryClient.removeQueries({ queryKey: ['executions'] })
+      queryClient.removeQueries({ queryKey: ['suites'] })
+      
+      console.info('[AUTH] Cache limpo após logout')
     },
+    onError: (error) => {
+      console.error('[AUTH] Erro no logout, limpando cache mesmo assim:', error)
+      // Mesmo com erro, limpar o cache local
+      queryClient.clear()
+    }
   })
 }
 

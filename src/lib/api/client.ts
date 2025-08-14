@@ -42,6 +42,12 @@ class ApiClient {
       const response = await fetch(url, config)
       
       if (!response.ok) {
+        // Se for 401 (Unauthorized), dispara evento para limpar estado
+        // MAS NÃO para o endpoint /auth/me (que é usado para verificar se está logado)
+        if (response.status === 401 && !url.endsWith('/auth/me')) {
+          this.handleUnauthorized()
+        }
+        
         const errorData = await response.json().catch(() => ({}))
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
       }
@@ -51,6 +57,13 @@ class ApiClient {
     } catch (error) {
       console.error('API request failed:', error)
       throw error
+    }
+  }
+
+  private handleUnauthorized() {
+    // Disparar evento personalizado para notificar sobre sess\u00e3o expirada
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('auth:session-expired'))
     }
   }
 

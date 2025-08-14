@@ -14,6 +14,14 @@ export function useProjects() {
   return useQuery({
     queryKey: PROJECT_KEYS.lists(),
     queryFn: projectsApi.getProjects,
+    enabled: typeof window !== 'undefined', // Só executar no cliente
+    retry: (failureCount, error: any) => {
+      // Se der 401 (não autenticado), não tentar novamente
+      if (error?.message?.includes('401') || error?.message?.includes('Token')) {
+        return false
+      }
+      return failureCount < 3
+    }
   })
 }
 

@@ -1,4 +1,6 @@
 export * from './useAuth'
+export * from './useAuthManager'
+export * from './useAuthRedirect'
 export * from './useProjects'
 export * from './useSuites'
 export * from './useScenarios'

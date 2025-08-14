@@ -3,13 +3,13 @@
 import { useState } from 'react'
 import { Layout } from '@/components/layout/Layout'
 import { ProjectList, ProjectForm } from '@/components/projects'
-import { useCurrentUser } from '@/hooks'
+import { useAuthRedirect } from '@/hooks/useAuthRedirect'
 import { Project } from '@/lib/types'
 
 export default function Home() {
   const [isProjectFormOpen, setIsProjectFormOpen] = useState(false)
   const [editingProject, setEditingProject] = useState<Project | null>(null)
-  const { data: user } = useCurrentUser()
+  const { user, isLoading } = useAuthRedirect()
 
   const handleSelectProject = (project: Project) => {
     // Navegar para página do projeto

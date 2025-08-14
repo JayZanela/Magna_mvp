@@ -3,17 +3,18 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { AuthModal } from '@/components/auth'
-import { useCurrentUser, useLogout } from '@/hooks'
+import { useCurrentUser } from '@/hooks'
+import { useAuthManager } from '@/hooks/useAuthManager'
 
 export function Header() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const { data: user, isLoading } = useCurrentUser()
-  const logoutMutation = useLogout()
+  const { handleManualLogout, isLoggingOut } = useAuthManager()
 
   console.log('LOG HEADER', user)
 
   const handleLogout = () => {
-    logoutMutation.mutate()
+    handleManualLogout()
   }
 
   return (
@@ -36,9 +37,9 @@ export function Header() {
                   variant="outline"
                   size="sm"
                   onClick={handleLogout}
-                  disabled={logoutMutation.isPending}
+                  disabled={isLoggingOut}
                 >
-                  {logoutMutation.isPending ? 'Saindo...' : 'Sair'}
+                  {isLoggingOut ? 'Saindo...' : 'Sair'}
                 </Button>
               </div>
             ) : (
