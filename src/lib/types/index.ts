@@ -46,7 +46,11 @@ export interface TestSuite {
   suiteOrder: number
   createdAt: string
   children?: TestSuite[]
-  scenarios?: TestScenario[]
+  scenarios?: number
+  _count: {
+    children: number
+    scenarios: number
+  }
 }
 
 export interface TestScenario {

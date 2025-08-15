@@ -7,22 +7,24 @@ import { Button } from '@/components/ui/Button'
 type TreeNodeData = TestSuite | TestScenario
 
 interface TreeNodeProps {
+  id?: string
   data: TreeNodeData
   level: number
   isExpanded?: boolean
-  children?: TreeNodeData[]
-  onToggle?: (id: number) => void
-  onSelect?: (data: TreeNodeData) => void
-  onEdit?: (data: TreeNodeData) => void
-  onDelete?: (data: TreeNodeData) => void
-  onCreateChild?: (parentId: number) => void
+  hasChildren?: boolean
+  onToggle?: () => void
+  onSelect?: () => void
+  onEdit?: () => void
+  onDelete?: () => void
+  onCreateChild?: () => void
 }
 
 export function TreeNode({
+  id,
   data,
   level,
   isExpanded = false,
-  children = [],
+  hasChildren = false,
   onToggle,
   onSelect,
   onEdit,
@@ -33,7 +35,6 @@ export function TreeNode({
   
   const isSuite = 'suiteOrder' in data
   const isScenario = 'scenarioOrder' in data
-  const hasChildren = children.length > 0
   
   const getIcon = () => {
     if (isSuite) {
@@ -47,79 +48,111 @@ export function TreeNode({
     
     switch (status) {
       case 'pending':
-        return 'text-yellow-600'
+        return 'text-yellow-600 bg-yellow-50'
       case 'in_progress':
-        return 'text-blue-600'
+        return 'text-blue-600 bg-blue-50'
       case 'completed':
-        return 'text-green-600'
+        return 'text-green-600 bg-green-50'
       case 'failed':
-        return 'text-red-600'
+        return 'text-red-600 bg-red-50'
       case 'blocked':
-        return 'text-gray-600'
+        return 'text-gray-600 bg-gray-50'
       default:
         return 'text-gray-600'
     }
   }
 
-  const handleToggle = () => {
+  const getStatusText = (status?: string) => {
+    switch (status) {
+      case 'pending':
+        return 'Pendente'
+      case 'in_progress':
+        return 'Em Progresso'
+      case 'completed':
+        return 'Concluído'
+      case 'failed':
+        return 'Falhou'
+      case 'blocked':
+        return 'Bloqueado'
+      default:
+        return status
+    }
+  }
+
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation()
     if (isSuite && hasChildren) {
-      onToggle?.(data.id)
+      onToggle?.()
     }
   }
 
   const handleSelect = () => {
-    onSelect?.(data)
+    onSelect?.()
   }
 
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation()
-    onEdit?.(data)
+    onEdit?.()
   }
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation()
-    onDelete?.(data)
+    onDelete?.()
   }
 
   const handleCreateChild = (e: React.MouseEvent) => {
     e.stopPropagation()
-    onCreateChild?.(data.id)
+    onCreateChild?.()
   }
 
   return (
     <div className="select-none">
       <div
-        className={`flex items-center py-1 px-2 hover:bg-gray-100 rounded group cursor-pointer`}
-        style={{ paddingLeft: `${level * 20 + 8}px` }}
+        id={id}
+        className={`flex items-center py-2 px-2 hover:bg-gray-50 rounded group cursor-pointer transition-colors`}
+        style={{ paddingLeft: `${level * 16 + 8}px` }}
         onMouseEnter={() => setShowActions(true)}
         onMouseLeave={() => setShowActions(false)}
         onClick={handleSelect}
       >
         {/* Toggle button for suites with children */}
-        {isSuite && hasChildren && (
+        {isSuite && (
           <button
-            onClick={(e) => {
-              e.stopPropagation()
-              handleToggle()
-            }}
-            className="mr-1 p-1 hover:bg-gray-200 rounded"
+            onClick={handleToggle}
+            className="mr-1 p-1 hover:bg-gray-200 rounded flex items-center justify-center w-6 h-6"
+            disabled={!hasChildren}
+            style={{ visibility: hasChildren ? 'visible' : 'hidden' }}
           >
             <span className="text-xs">
-              {isExpanded ? '▼' : '▶'}
+              {hasChildren ? (isExpanded ? '▼' : '▶') : ''}
             </span>
           </button>
         )}
 
+        {/* Spacer for scenarios (alinhamento) */}
+        {isScenario && (
+          <div className="w-7" />
+        )}
+
         {/* Icon */}
-        <span className="mr-2 text-sm">{getIcon()}</span>
+        <span className="mr-2 text-base">{getIcon()}</span>
 
         {/* Name */}
-        <span className="flex-1 text-sm truncate">{data.name}</span>
+        <span className="flex-1 text-sm font-medium text-gray-900 truncate">
+          {data.name}
+        </span>
 
         {/* Status for scenarios */}
         {isScenario && (data as TestScenario).status && (
-          <span className={`text-xs mr-2 ${getStatusColor((data as TestScenario).status)}`}>
-            {(data as TestScenario).status}
+          <span className={`text-xs px-2 py-1 rounded-full mr-2 ${getStatusColor((data as TestScenario).status)}`}>
+            {getStatusText((data as TestScenario).status)}
+          </span>
+        )}
+
+        {/* Count of children for suites */}
+        {isSuite && hasChildren && (
+          <span className="text-xs text-gray-500 mr-2">
+            ({hasChildren})
           </span>
         )}
 
@@ -131,7 +164,7 @@ export function TreeNode({
                 size="sm"
                 variant="ghost"
                 onClick={handleCreateChild}
-                className="text-xs p-1 h-6"
+                className="text-xs p-1 h-7 w-7"
                 title="Adicionar item"
               >
                 +
@@ -141,7 +174,7 @@ export function TreeNode({
               size="sm"
               variant="ghost"
               onClick={handleEdit}
-              className="text-xs p-1 h-6"
+              className="text-xs p-1 h-7 w-7"
               title="Editar"
             >
               ✏️
@@ -150,7 +183,7 @@ export function TreeNode({
               size="sm"
               variant="ghost"
               onClick={handleDelete}
-              className="text-xs p-1 h-6"
+              className="text-xs p-1 h-7 w-7"
               title="Excluir"
             >
               🗑️
@@ -158,24 +191,6 @@ export function TreeNode({
           </div>
         )}
       </div>
-
-      {/* Children */}
-      {isSuite && isExpanded && children.length > 0 && (
-        <div>
-          {children.map((child) => (
-            <TreeNode
-              key={child.id}
-              data={child}
-              level={level + 1}
-              onToggle={onToggle}
-              onSelect={onSelect}
-              onEdit={onEdit}
-              onDelete={onDelete}
-              onCreateChild={onCreateChild}
-            />
-          ))}
-        </div>
-      )}
     </div>
   )
 }

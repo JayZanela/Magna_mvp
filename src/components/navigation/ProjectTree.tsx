@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { TestSuite, TestScenario } from '@/lib/types'
 import { TreeNode } from './TreeNode'
-import { useProjectSuites, useSuiteScenarios } from '@/hooks'
+import { useProjectSuites } from '@/hooks'
 import { Loading } from '@/components/common/Loading'
 import { ErrorMessage } from '@/components/common/ErrorMessage'
 import { Button } from '@/components/ui/Button'
@@ -19,6 +19,14 @@ interface ProjectTreeProps {
   onCreateScenario?: (suiteId: number) => void
 }
 
+// Estrutura hierárquica para representar a árvore
+interface TreeNode {
+  id: number
+  data: TreeData
+  children: TreeNode[]
+  level: number
+}
+
 export function ProjectTree({
   projectId,
   onSelectItem,
@@ -28,50 +36,60 @@ export function ProjectTree({
   onCreateScenario,
 }: ProjectTreeProps) {
   const [expandedNodes, setExpandedNodes] = useState<Set<number>>(new Set())
-  const [treeData, setTreeData] = useState<TreeData[]>([])
+  const [treeStructure, setTreeStructure] = useState<TreeNode[]>([])
 
-  const { data: suites, isLoading, error } = useProjectSuites(projectId)
+  const { data: suites, isLoading, error, refetch } = useProjectSuites(projectId)
 
-  // Build hierarchical tree structure
+  // Construir árvore hierárquica CORRETAMENTE
   useEffect(() => {
-    if (!suites) return
+    if (!suites?.suites) {
+      setTreeStructure([])
+      return
+    }
 
-    const buildTree = (parentId: number | null = null): TreeData[] => {
-      const nodes: TreeData[] = []
-
-      // Add suites
+    const buildHierarchy = (parentId: number | null = null, level: number = 0): TreeNode[] => {
+      // Encontrar suites deste nível
       const suitesAtLevel = suites.suites.filter(
-        (suite) => suite.parentId === parentId
-      )
-      suitesAtLevel.forEach((suite) => {
-        nodes.push(suite)
+        suite => suite.parentId === parentId
+      ).sort((a, b) => a.suiteOrder - b.suiteOrder)
 
-        // Add child suites
-        const childSuites = buildTree(suite.id)
-        nodes.push(...childSuites)
+      return suitesAtLevel.map(suite => {
+        const node: TreeNode = {
+          id: suite.id,
+          data: suite,
+          children: [],
+          level
+        }
 
-        // Add scenarios for this suite
-        if (suite.scenarios) {
-          const sortedScenarios = [...suite.scenarios].sort(
-            (a, b) => a.scenarioOrder - b.scenarioOrder
-          )
-          nodes.push(...sortedScenarios)
-        }
-      })
+        // Adicionar suites filhas recursivamente
+        const childSuites = buildHierarchy(suite.id, level + 1)
+        node.children.push(...childSuites)
 
-      return nodes.sort((a, b) => {
-        if ('suiteOrder' in a && 'suiteOrder' in b) {
-          return a.suiteOrder - b.suiteOrder
+        // Adicionar cenários desta suite
+        if (suite.scenarios && suite.scenarios.length > 0) {
+          const scenarioNodes: TreeNode[] = suite.scenarios
+            .sort((a, b) => a.scenarioOrder - b.scenarioOrder)
+            .map(scenario => ({
+              id: scenario.id,
+              data: scenario,
+              children: [],
+              level: level + 1
+            }))
+          
+          node.children.push(...scenarioNodes)
         }
-        if ('scenarioOrder' in a && 'scenarioOrder' in b) {
-          return a.scenarioOrder - b.scenarioOrder
-        }
-        return 0
+
+        return node
       })
     }
 
-    setTreeData(buildTree())
+    setTreeStructure(buildHierarchy())
   }, [suites])
+
+  // Recarregar quando criar novos itens
+  useEffect(() => {
+    refetch()
+  }, [refetch])
 
   const handleToggleNode = (nodeId: number) => {
     const newExpanded = new Set(expandedNodes)
@@ -84,66 +102,95 @@ export function ProjectTree({
   }
 
   const handleCreateChild = (parentId: number) => {
-    const parentItem = treeData.find((item) => item.id === parentId)
-    if (parentItem && 'suiteOrder' in parentItem) {
-      // It's a suite, we can create either a child suite or scenario
-      // For now, let's create a scenario by default
-      onCreateScenario?.(parentId)
+    // Criar menu suspenso para escolher suite ou cenário
+    const createMenu = () => {
+      const rect = document.getElementById(`node-${parentId}`)?.getBoundingClientRect()
+      if (rect) {
+        const menu = document.createElement('div')
+        menu.className = 'absolute bg-white border shadow-lg rounded z-50 py-2'
+        menu.style.left = `${rect.right + 10}px`
+        menu.style.top = `${rect.top}px`
+        
+        const suiteBtn = document.createElement('button')
+        suiteBtn.className = 'block w-full px-4 py-2 text-left hover:bg-gray-100'
+        suiteBtn.textContent = '📁 Criar Suite'
+        suiteBtn.onclick = () => {
+          onCreateSuite?.(parentId)
+          menu.remove()
+        }
+        
+        const scenarioBtn = document.createElement('button')
+        scenarioBtn.className = 'block w-full px-4 py-2 text-left hover:bg-gray-100'
+        scenarioBtn.textContent = '📄 Criar Cenário'
+        scenarioBtn.onclick = () => {
+          onCreateScenario?.(parentId)
+          menu.remove()
+        }
+        
+        menu.appendChild(suiteBtn)
+        menu.appendChild(scenarioBtn)
+        document.body.appendChild(menu)
+        
+        // Remover ao clicar fora
+        const removeMenu = (e: MouseEvent) => {
+          if (!menu.contains(e.target as Node)) {
+            menu.remove()
+            document.removeEventListener('click', removeMenu)
+          }
+        }
+        setTimeout(() => document.addEventListener('click', removeMenu), 0)
+      }
     }
+    
+    createMenu()
   }
 
-  const renderNode = (item: TreeData, level: number = 0): React.ReactNode => {
-    const isSuite = 'suiteOrder' in item
-    const children = isSuite ? getChildrenOf(item.id) : []
-    const isExpanded = expandedNodes.has(item.id)
+  const renderTreeNode = (node: TreeNode): React.ReactNode => {
+    const isExpanded = expandedNodes.has(node.id)
+    const hasChildren = node.children.length > 0
 
     return (
-      <TreeNode
-        key={item.id}
-        data={item}
-        level={level}
-        isExpanded={isExpanded}
-        children={children}
-        onToggle={handleToggleNode}
-        onSelect={onSelectItem}
-        onEdit={onEditItem}
-        onDelete={onDeleteItem}
-        onCreateChild={handleCreateChild}
-      />
+      <div key={node.id}>
+        <TreeNode
+          id={`node-${node.id}`}
+          data={node.data}
+          level={node.level}
+          isExpanded={isExpanded}
+          hasChildren={hasChildren}
+          onToggle={() => handleToggleNode(node.id)}
+          onSelect={() => onSelectItem?.(node.data)}
+          onEdit={() => onEditItem?.(node.data)}
+          onDelete={() => onDeleteItem?.(node.data)}
+          onCreateChild={() => handleCreateChild(node.id)}
+        />
+
+        {/* Renderizar filhos se expandido */}
+        {isExpanded && hasChildren && (
+          <div className="ml-4">
+            {node.children.map(childNode => renderTreeNode(childNode))}
+          </div>
+        )}
+      </div>
     )
-  }
-
-  const getChildrenOf = (parentId: number): TreeData[] => {
-    return treeData.filter((item) => {
-      if ('suiteOrder' in item) {
-        return item.parentId === parentId
-      }
-      return item.suiteId === parentId
-    })
-  }
-
-  const getRootItems = (): TreeData[] => {
-    return treeData.filter((item) => {
-      if ('suiteOrder' in item) {
-        return item.parentId === null
-      }
-      return false // Scenarios are not root items
-    })
   }
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <Loading />
+      <div className="bg-white border rounded-lg">
+        <div className="flex items-center justify-center py-8">
+          <Loading />
+        </div>
       </div>
     )
   }
 
   if (error) {
-    return <ErrorMessage message="Erro ao carregar estrutura do projeto" />
+    return (
+      <div className="bg-white border rounded-lg p-4">
+        <ErrorMessage message="Erro ao carregar estrutura do projeto" />
+      </div>
+    )
   }
-
-  const rootItems = getRootItems()
 
   return (
     <div className="bg-white border rounded-lg">
@@ -158,15 +205,15 @@ export function ProjectTree({
         </Button>
       </div>
 
-      <div className="p-2">
-        {rootItems.length === 0 ? (
+      <div className="p-2 max-h-96 overflow-y-auto">
+        {treeStructure.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             <p className="mb-2">Nenhuma suite criada</p>
             <p className="text-sm">Crie sua primeira suite para começar</p>
           </div>
         ) : (
           <div className="space-y-1">
-            {rootItems.map((item) => renderNode(item))}
+            {treeStructure.map(node => renderTreeNode(node))}
           </div>
         )}
       </div>
